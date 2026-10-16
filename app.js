@@ -202,9 +202,14 @@ function render(){
     `<span class="chip" title="Дней подряд">🔥 ${streak()}</span><span class="chip">${xp} XP</span><span class="chip grade">${g.name}</span>`;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === view || (view==='task' && b.dataset.v==='today' && false)));
   const m = document.getElementById('main');
-  m.innerHTML = VIEWS[view]();
-  if (view === 'reports') drawReport();
-  AFTER_RENDER.forEach(f => f());
+  try {
+    m.innerHTML = VIEWS[view]();
+    if (view === 'reports') drawReport();
+    AFTER_RENDER.forEach(f => f());
+  } catch (e) {
+    console.error(e);
+    m.innerHTML = `<div class="card"><h2>Не удалось показать экран</h2><p class="err small">${esc(e.message)}</p><p class="muted small">Обновите страницу с очисткой кэша (Ctrl+Shift+R / Cmd+Shift+R). Если ошибка повторяется — пришлите этот текст.</p><button class="btn" onclick="go('today')">На главную</button></div>`;
+  }
 }
 
 // ───────── Экран «Рабочий день» ─────────
