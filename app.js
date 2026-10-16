@@ -9,7 +9,7 @@ const dayNum = () => dayNumOf(today());
 const keyOfNum = n => { const d = new Date(n*864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; };
 const fmtDay = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
 
-const def = () => ({results:{}, drafts:{}, checks:{}, cards:{}, cardLog:{}, log:[], journal:{}, mistakes:{}, plans:{}, days:{}, settings:{newCards:6, learn:true}, sprints:{}, elicitRun:{}, aiReviews:{}, vacancies:{}, assess:[], mocks:[], interrupts:[], mcards:[], gen:[], coach:{}, focus:{}, tutor:{}});
+const def = () => ({results:{}, drafts:{}, checks:{}, cards:{}, cardLog:{}, log:[], journal:{}, mistakes:{}, plans:{}, days:{}, settings:{newCards:6, learn:true}, sprints:{}, elicitRun:{}, aiReviews:{}, vacancies:{}, assess:[], mocks:[], interrupts:[], mcards:[], gen:[], coach:{}, focus:{}, tutor:{}, learn:{done:{}, ans:{}, ai:{}}});
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) return Object.assign(def(), s); } catch(e){} return def(); })();
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 
@@ -419,7 +419,7 @@ async function sqlShow(id){
 function tQuiz(it){
   const st = quizAns[it.id] = quizAns[it.id] || {sel:{}, done:false};
   return it.questions.map((q,qi)=>`<div class="card"><h3>${qi+1}. ${esc(q.q)}</h3>
-    ${q.o.map((o,oi)=>{ let cls = ''; if (st.done){ if (oi===q.a) cls='right'; else if (st.sel[qi]===oi) cls='wrong'; }
+    ${shuffleIdx(q.o.length, it.id+':'+qi).map(oi=>{ const o = q.o[oi]; let cls = ''; if (st.done){ if (oi===q.a) cls='right'; else if (st.sel[qi]===oi) cls='wrong'; }
       return `<label class="opt ${cls}"><input type="radio" name="q${qi}" ${st.sel[qi]===oi?'checked':''} ${st.done?'disabled':''} onchange="quizAns['${it.id}'].sel[${qi}]=${oi}"> ${esc(o)}</label>`; }).join('')}
     ${st.done?`<p class="muted">💡 ${esc(q.e)}</p>`:''}</div>`).join('')
   + (st.done ? `<button class="btn" onclick="delete quizAns['${it.id}'];go(lastList)">Готово</button>` : `<button class="btn" onclick="submitQuiz('${it.id}')">Проверить ответы</button>`);
@@ -445,7 +445,14 @@ function tInbox(it){
   if (st.step >= it.steps.length) { const sc = st.picks.reduce((a,p,i)=>a+it.steps[i].opts[p].s,0); h += `<div class="card"><h3>Итог: ${sc} из ${it.steps.length*2}</h3><button class="btn" onclick="delete inboxRun['${it.id}'];go(lastList)">Готово</button></div>`; }
   return h;
 }
-function shuffleIdx(n, seed){ let h = 0; for (const c of String(seed)) h = (h*31 + c.charCodeAt(0)) >>> 0; const a = [...Array(n).keys()]; for (let i=n-1;i>0;i--){ h = (h*1103515245+12345)>>>0; const j = h % (i+1); [a[i],a[j]] = [a[j],a[i]]; } return a; }
+function shuffleIdx(n, seed){
+  // детерминированное перемешивание: хеш FNV-1a строки-сида + генератор mulberry32
+  let h = 2166136261; for (const c of String(seed)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const rnd = () => { h = (h + 0x6D2B79F5) | 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const a = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 function pickInbox(id, oi){
   const it = ITEMS[id], st = inboxRun[id]; st.picks.push(oi); st.step++;
   if (st.step >= it.steps.length) { const sc = st.picks.reduce((a,p,i)=>a+it.steps[i].opts[p].s,0); complete(id, sc/(it.steps.length*2)); }

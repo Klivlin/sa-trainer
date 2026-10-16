@@ -34,9 +34,14 @@ const GEM = 'https://generativelanguage.googleapis.com/v1beta';
 const stripAP = x => Array.isArray(x) ? x.map(stripAP) : (x && typeof x === 'object') ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'additionalProperties').map(([k, v]) => [k, k === 'properties' ? Object.fromEntries(Object.entries(v).map(([pk, pv]) => [pk, stripAP(pv)])) : stripAP(v)])) : x;
 async function gemFetch(path, body) {
   let r;
+  // не ждём одну модель дольше 60 секунд — при зависании переходим к следующей
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 60000);
   try {
-    r = await fetch(GEM + path, { method: body ? 'POST' : 'GET', headers: { 'x-goog-api-key': key(), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
-  } catch (e) { throw new Error('Нет соединения с Gemini API'); }
+    r = await fetch(GEM + path, { method: body ? 'POST' : 'GET', signal: ctrl.signal, headers: { 'x-goog-api-key': key(), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  } catch (e) {
+    if (e.name === 'AbortError') { const t = new Error('Модель Gemini не ответила за 60 секунд'); t.status = 504; throw t; }
+    throw new Error('Нет соединения с Gemini API');
+  } finally { clearTimeout(timer); }
   if (r.ok) return r.json();
   const err = await r.json().catch(() => ({}));
   const msg = err.error?.message || r.statusText;
@@ -207,6 +212,8 @@ const TUTOR_MODES = {
   hint: 'Дай ОДНУ следующую подсказку (уровень {n} из 3): уровень 1 — наводящий вопрос или направление мысли; уровень 2 — конкретнее: какие пункты/конструкции нужны; уровень 3 — почти решение: структура ответа или каркас запроса с пропусками. Не повторяй прошлые подсказки. Готовый ответ целиком не давай.',
   solution: 'Разбери эталонное решение для новичка: покажи его по шагам и для каждого шага объясни, ПОЧЕМУ так делается и что было бы, если этого не сделать. Для SQL разбери запрос по частям (каждую строку). В конце — 2-3 главных урока из этой задачи.',
   check: 'Посмотри черновик ученика и дай обратную связь как наставник: что уже хорошо, чего не хватает (по пунктам), что улучшить в первую очередь. Готовый ответ не пиши — направляй.',
+  simpler: 'Это урок курса. Объясни его тему ещё проще — как другу без ИТ-опыта: бытовая аналогия, затем суть в 3-5 пунктах, затем один маленький пример. Без новых сложных терминов.',
+  example: 'Это урок курса. Приведи один подробный реалистичный пример из работы системного аналитика по теме урока (ситуация → что делает аналитик по шагам → результат). В конце дай маленькое упражнение для самопроверки, а ответ на него напиши после строки «Ответ:».',
   ask: 'Ответь на вопрос ученика по этой задаче простым языком, с примером. Если вопрос просит готовое решение — дай сильную подсказку, но оставь последний шаг ученику.'
 };
 async function tutor(ctx, mode, { n = 1, prevHints = [], draft = '', history = [] } = {}) {

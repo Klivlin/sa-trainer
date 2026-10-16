@@ -135,6 +135,11 @@ details.sub{background:var(--bg);border:1px solid var(--line);border-radius:10px
 .tut ul,.tut ol,details.sub ul,details.sub ol{padding-left:20px;margin:4px 0}.tut p,details.sub p{margin:6px 0}
 pre.codeblk{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto}
 .tutchat{margin-top:10px}.tutchat .bubble p{margin:2px 0}.tutq{flex:1;min-width:200px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;margin-right:6px}
+.hero2 h2{margin-top:0}.module h2{font-size:17px;margin:0}.bar.thin{height:5px;margin:8px 0}
+.lrow{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer}.lrow:hover{background:var(--soft)}.lrow .lt{flex:1}.lrow.ok .lt{color:var(--muted)}
+.num.sm{width:24px;height:24px;font-size:12px}.lrow.ok .num{background:var(--good);color:#fff}
+.lesson{font-size:16px;line-height:1.65}.lesson h4{font-size:17px;margin:18px 0 6px}.lesson ul,.lesson ol{padding-left:22px}.lesson p{margin:8px 0}
+blockquote{border-left:3px solid var(--acc);margin:8px 0;padding:4px 12px;background:var(--acc2);border-radius:0 8px 8px 0}
 @media (max-width:800px){.tplgrid{grid-template-columns:1fr}.split{grid-template-columns:1fr}.daygrid{grid-template-columns:1fr}.timeline{position:static}.comp{grid-template-columns:1fr;gap:2px}.hero .ring{min-width:72px;height:72px}h1{font-size:22px}}
 @media print{header,.noprint,#toast{display:none}body{background:#fff;color:#000}main{padding:0}.card{border:0}}
 </style>
@@ -144,6 +149,7 @@ pre.codeblk{white-space:pre-wrap;background:var(--bg);border:1px solid var(--lin
   <div class="top"><span class="logo">📐 Тренажёр системного аналитика</span><div id="chips"></div></div>
   <nav>
     <button data-v="today" onclick="go('today')">Рабочий день</button>
+    <button data-v="learn" onclick="go('learn')">Обучение</button>
     <button data-v="project" onclick="go('project')">Проект</button>
     <button data-v="library" onclick="go('library')">Задания</button>
     <button data-v="cards" onclick="go('cards')">Карточки</button>
@@ -167,16 +173,18 @@ window.addEventListener('error', e => {
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-<script src="data.js?v=6"></script>
+<script src="data.js?v=9"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<script src="data2.js?v=6"></script>
-<script src="data3.js?v=6"></script>
-<script src="data4.js?v=6"></script>
-<script src="data5.js?v=6"></script>
-<script src="app.js?v=6"></script>
-<script src="app2.js?v=6"></script>
-<script src="app3.js?v=6"></script>
-<script src="app4.js?v=6"></script>
-<script type="module" src="ai.js?v=6"></script>
+<script src="data2.js?v=9"></script>
+<script src="data3.js?v=9"></script>
+<script src="data4.js?v=9"></script>
+<script src="data5.js?v=9"></script>
+<script src="data6.js?v=9"></script>
+<script src="app.js?v=9"></script>
+<script src="app2.js?v=9"></script>
+<script src="app3.js?v=9"></script>
+<script src="app4.js?v=9"></script>
+<script src="app5.js?v=9"></script>
+<script type="module" src="ai.js?v=9"></script>
 </body>
 </html>

@@ -11,11 +11,19 @@ function mdLite(t){
   return parts.map((p, i) => {
     if (i % 2) return `<pre class="mono small codeblk">${esc(p.replace(/\n$/, ''))}</pre>`;
     let html = '', list = null;
-    const close = () => { if (list) { html += `</${list}>`; list = null; } };
+    const close = () => { if (list) { html += list === 'table' ? '</table></div>' : `</${list}>`; list = null; } };
     p.split('\n').forEach(line => {
       const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
       let m;
-      if ((m = line.match(/^\s*#{1,6}\s+(.*)/))) { close(); html += `<h4>${inl(m[1])}</h4>`; }
+      if (/^\s*\|.*\|\s*$/.test(line)) {
+        if (/^\s*\|[\s:|-]+\|\s*$/.test(line)) return;
+        const cells = line.trim().slice(1, -1).split('|').map(c => inl(c.trim()));
+        if (list !== 'table') { close(); html += '<div class="tw"><table>' + `<tr>${cells.map(c => `<th>${c}</th>`).join('')}</tr>`; list = 'table'; }
+        else html += `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+        return;
+      }
+      if ((m = line.match(/^\s*>\s?(.*)/))) { close(); html += `<blockquote>${inl(m[1])}</blockquote>`; }
+      else if ((m = line.match(/^\s*#{1,6}\s+(.*)/))) { close(); html += `<h4>${inl(m[1])}</h4>`; }
       else if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) { close(); html += '<hr>'; }
       else if ((m = line.match(/^\s*[-•*]\s+(.*)/))) { if (list !== 'ul') { close(); html += '<ul>'; list = 'ul'; } html += `<li>${inl(m[1])}</li>`; }
       else if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); html += '<ol>'; list = 'ol'; } html += `<li>${inl(m[1])}</li>`; }
@@ -82,7 +90,7 @@ function mentorPanel(it){
   const T = S.tutor[it.id] || {hints: [], chat: []}, busy = TUT.busy[it.id], ai = AI.enabled;
   const isOpen = TUT.open[it.id] ?? (S.settings.learn && !S.results[it.id]);
   const lesson = LESSONS[it.cat], guide = KIND_GUIDES[it.kind];
-  const b = (mode, label, cls = 'ghost') => `<button class="btn sm ${cls}" onclick="askTutor('${it.id}','${mode}')" ${busy ? 'disabled' : ''}>${busy === mode ? '⏳ Думаю…' : label}</button>`;
+  const b = (mode, label, cls = 'ghost') => `<button class="btn sm ${cls}" onclick="askTutor('${it.id}','${mode}')" ${busy ? 'disabled' : ''}>${busy === mode ? '⏳ Думаю… (до минуты)' : label}</button>`;
   return `<details class="card mentor" ${isOpen ? 'open' : ''} ontoggle="TUT.open['${it.id}']=this.open">
   <summary><b>🎓 Наставник</b> <span class="muted small">— теория, как решать, подсказки и разбор</span></summary>
   ${guide ? `<details class="sub" ${!S.results[it.id] && S.settings.learn ? 'open' : ''}><summary>📋 Как решать такие задания</summary>${mdLite(guide)}</details>` : ''}
