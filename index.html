@@ -120,7 +120,15 @@ input[type=password]{width:100%}input[type=number]{width:90px;display:block}
 .chart .hit{fill:transparent}.chart .pt:hover .dot{r:6}.chart .lbl{fill:var(--ink);font-size:12px;font-weight:600}
 .assesshead{display:flex;justify-content:space-between;align-items:center;position:sticky;top:96px;background:var(--bg);z-index:3;padding:6px 0}
 .astask,.asq{padding:10px 0;border-bottom:1px solid var(--line)}
-@media (max-width:800px){.split{grid-template-columns:1fr}.daygrid{grid-template-columns:1fr}.timeline{position:static}.comp{grid-template-columns:1fr;gap:2px}.hero .ring{min-width:72px;height:72px}h1{font-size:22px}}
+.focusw{position:fixed;left:16px;bottom:16px;z-index:8;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 8px 6px 14px;display:flex;align-items:center;gap:6px;box-shadow:0 6px 20px rgba(0,0,0,.12);font-variant-numeric:tabular-nums}
+.focusw button{border:0;background:var(--soft);color:var(--ink);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px}.focusw button.on{background:var(--acc);color:#fff}
+.fmode{font-weight:700}.fmode.break{color:var(--good)}
+body.focus header nav,body.focus #chips,body.focus .timeline{display:none}
+body.focus main{max-width:860px}
+.flash.mist{border-left:4px solid var(--bad)}.big{font-size:17px}
+.tplgrid{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start}.tplgrid aside .link{padding:4px 8px;border-radius:6px}.tplgrid aside .link.on{background:var(--acc2)}
+pre.tpl{white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;max-height:70vh;overflow:auto}
+@media (max-width:800px){.tplgrid{grid-template-columns:1fr}.split{grid-template-columns:1fr}.daygrid{grid-template-columns:1fr}.timeline{position:static}.comp{grid-template-columns:1fr;gap:2px}.hero .ring{min-width:72px;height:72px}h1{font-size:22px}}
 @media print{header,.noprint,#toast{display:none}body{background:#fff;color:#000}main{padding:0}.card{border:0}}
 </style>
 </head>
@@ -132,6 +140,7 @@ input[type=password]{width:100%}input[type=number]{width:90px;display:block}
     <button data-v="project" onclick="go('project')">Проект</button>
     <button data-v="library" onclick="go('library')">Задания</button>
     <button data-v="cards" onclick="go('cards')">Карточки</button>
+    <button data-v="templates" onclick="go('templates')">Шаблоны</button>
     <button data-v="career" onclick="go('career')">Карьера</button>
     <button data-v="progress" onclick="go('progress')">Прогресс</button>
     <button data-v="reports" onclick="go('reports')">Отчёты</button>
@@ -145,8 +154,10 @@ input[type=password]{width:100%}input[type=number]{width:90px;display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <script src="data2.js"></script>
 <script src="data3.js"></script>
+<script src="data4.js"></script>
 <script src="app.js"></script>
 <script src="app2.js"></script>
+<script src="app3.js"></script>
 <script type="module" src="ai.js"></script>
 </body>
 </html>

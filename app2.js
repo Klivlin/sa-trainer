@@ -9,7 +9,7 @@ window.AI = window.AI || {enabled:false, cfg:{}, MODELS:[]};
 Object.assign(KIND_LABEL, {diagram:'Диаграмма', openapi:'OpenAPI', elicit:'Интервью с заказчиком', interrupt:'Прерывание', assess:'Ассессмент', mock:'Пробное собеседование'});
 Object.assign(XP_TABLE, {diagram:it=>30+10*it.level, openapi:it=>40+10*it.level, elicit:()=>80, interrupt:()=>10, assess:()=>150, mock:()=>60});
 Object.assign(TASK_VIEWS, {diagram:it=>tDiagram(it), openapi:it=>tOpenapi(it), elicit:it=>tElicit(it)});
-const ensureState = () => { ['sprints','elicitRun','aiReviews','vacancies'].forEach(k => S[k] = S[k] || {}); ['assess','mocks','interrupts'].forEach(k => S[k] = S[k] || []); };
+function ensureState(){ ['sprints','elicitRun','aiReviews','vacancies'].forEach(k => S[k] = S[k] || {}); ['assess','mocks','interrupts'].forEach(k => S[k] = S[k] || []); }
 ensureState();
 const strip = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const loadingCard = t => `<div class="card note">⏳ ${esc(t)}</div>`;
