@@ -442,7 +442,7 @@ function exportPortfolioFull(){
   OPENAPI.filter(d => S.drafts[d.id]).forEach(d => { md += `### ${d.title}\n\n${d.scenario}\n\n\`\`\`yaml\n${S.drafts[d.id]}\n\`\`\`\n\n`; });
   md += `## Избранные кейсы\n\n`;
   TASKS.filter(t => t.type === 'case' && best(t.id) >= 0.7 && S.drafts[t.id]).sort((a,b)=>best(b.id)-best(a.id)).slice(0,5).forEach(t => { md += `### ${t.title}\n\n_Ситуация:_ ${strip(t.scenario)}\n\n_Задание:_ ${t.task}\n\n${S.drafts[t.id]}\n\n`; });
-  download(`portfolio-${today()}.md`, md);
+  downloadFile(`portfolio-${today()}.md`, md);
 }
 
 // ───────── Спринт: планирование и ретро ─────────
@@ -478,12 +478,12 @@ function sprintFactHtml(sp, W){
 function saveSprint(){
   const goal = document.getElementById('sp-goal').value.trim(); if (goal.length < 10) { toast('Сформулируйте цель спринта'); return; }
   S.sprints[weekKey(today())] = {goal, focus: document.getElementById('sp-focus').value, days:+document.getElementById('sp-days').value, avg:+document.getElementById('sp-avg').value, hours:+document.getElementById('sp-hours').value, at:Date.now()};
-  event('Планирование спринта: ' + goal); render();
+  logEvent('Планирование спринта: ' + goal); render();
 }
 function saveRetro(){
   const sp = S.sprints[weekKey(today())]; const v = id => document.getElementById(id).value.trim();
   if (!v('rt-good') || !v('rt-act')) { toast('Заполните хотя бы «что хорошо» и «действия»'); return; }
-  sp.retro = {good:v('rt-good'), bad:v('rt-bad'), act:v('rt-act'), at:Date.now()}; event('Ретроспектива спринта'); render();
+  sp.retro = {good:v('rt-good'), bad:v('rt-bad'), act:v('rt-act'), at:Date.now()}; logEvent('Ретроспектива спринта'); render();
 }
 // Спринт в недельном отчёте
 const _drawReport = drawReport;
@@ -523,7 +523,7 @@ function answerInterrupt(xi, oi){
   const x = INTERRUPTS[xi], o = x.opts[oi], id = `int@${today()}@${Dget().ints}`;
   ensurePseudo(id, 'interrupt', 'Прерывание: ' + x.from.split(' · ')[0]);
   S.interrupts.push({day: today(), from: x.from, pick: o[0], score: o[1]});
-  complete(id, o[1]/2); event(`Прерывание от ${x.from.split(' · ')[0]}: ${o[1]===2?'отреагировал верно':'реакция неоптимальна'}`);
+  complete(id, o[1]/2); logEvent(`Прерывание от ${x.from.split(' · ')[0]}: ${o[1]===2?'отреагировал верно':'реакция неоптимальна'}`);
   document.querySelector('#intov .modal').innerHTML = `<p class="${o[1]===2?'good':o[1]===1?'':'err'}">${['✗','◐','✓'][o[1]]} ${esc(o[2])}</p><button class="btn" onclick="document.getElementById('intov').remove()">Вернуться к задаче</button>`;
 }
 
@@ -543,7 +543,7 @@ function vSettings(){
   <label>Глубина проверки</label><select id="aieffort">${[['low','Быстро и дёшево'],['medium','Стандартно'],['high','Тщательно (дороже)']].map(([v,l])=>`<option value="${v}" ${c.effort===v?'selected':''}>${l}</option>`).join('')}</select>
   <div class="row"><button class="btn" onclick="saveAI()">Сохранить</button><button class="btn ghost" onclick="pingAI()">Проверить подключение</button>${c.hasKey?`<button class="btn ghost" onclick="AI.clearKey();render()">Удалить ключ</button>`:''}</div><p class="small">${pingState}</p>`}</div>
   <div class="card"><h2>Данные</h2><p class="muted small">Прогресс хранится в этом браузере. На другом устройстве или адресе (например, на GitHub Pages и локальном файле) прогресс разный — переносите его резервной копией.</p>
-  <div class="row"><button class="btn ghost" onclick="download('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button><label class="btn ghost">Импорт<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></div></div>`;
+  <div class="row"><button class="btn ghost" onclick="downloadFile('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button><label class="btn ghost">Импорт<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></div></div>`;
 }
 function saveAI(){
   const k = document.getElementById('aikey').value.trim();

@@ -36,7 +36,7 @@ function complete(id, score, extra = {}){
   S.results[id] = {score: Math.max(score, prev?.score || 0), lastScore: score, xp: Math.max(xp, prev?.xp || 0), date: today(), attempts: (prev?.attempts || 0) + 1, ...extra};
   S.log.push({ts: Date.now(), day: today(), id, kind: it.kind, title: it.title, cat: it.cat, score, xp: gained, mins: timerMins(id)});
   const t = S.plans[today()] && ticketOf(id);
-  if (t) event(`${t.key} «${t.title}» закрыта: ${Math.round(score*100)}%`);
+  if (t) logEvent(`${t.key} «${t.title}» закрыта: ${Math.round(score*100)}%`);
   save();
   toast(`Засчитано: ${Math.round(score*100)}% · +${gained} XP`);
 }
@@ -106,7 +106,7 @@ function getPlan(k = today()){
 }
 const ticketIds = p => [p.sql, p.inbox, p.case, p.meet, p.quiz];
 const Dget = (k = today()) => (S.days[k] = S.days[k] || {ev:[], post:{}});
-function event(what){ Dget().ev.push({ts: Date.now(), what}); save(); }
+function logEvent(what){ Dget().ev.push({ts: Date.now(), what}); save(); }
 const hm = ts => new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
 
 // ───────── Распорядок рабочего дня ─────────
@@ -193,7 +193,7 @@ function mgrFeedback(k){
 // ───────── Навигация ─────────
 let view = 'today', current = null, revealed = {}, quizAns = {}, inboxRun = {}, filter = 'all';
 function go(v, id){ view = v; current = id || null; if (id) startTimer(id); if (v === 'cards' && !cardSession) cardSession = {queue: cardQueue(), flipped:false}; if (v !== 'cards') cardSession = null; render(); window.scrollTo(0,0); }
-function open(id){ go('task', id); }
+function openTask(id){ go('task', id); }
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2600); }
 
 function render(){
@@ -232,7 +232,7 @@ function vDay(){
   <div class="daygrid">
     <div class="now">${phasePanel(cur, p, D)}</div>
     <aside class="timeline">${ph.map(x => { const ok = phaseDone(x), isCur = x === cur, r = x.key === 'tk' ? reviewOf(x.id) : null;
-      const click = x.key === 'tk' && D.started ? `onclick="open('${x.id}')"` : '';
+      const click = x.key === 'tk' && D.started ? `onclick="openTask('${x.id}')"` : '';
       return `<div class="tl ${ok?'ok':''} ${isCur?'cur':''} ${click?'clk':''}" ${click}><span class="tm">${x.t}</span><span class="ic">${ok?'✓':icon(x)}</span><div><div class="tlt">${esc(label(x))}</div>${D.post?.[x.id]?'<div class="small muted">отложено на завтра</div>':''}${r?`<div class="small ${r.ok?'good':'err'}">${esc(r.text)}</div>`:''}</div></div>`; }).join('')}</aside>
   </div>`;
 }
@@ -248,7 +248,7 @@ function phasePanel(ph, p, D){
     <button class="btn" onclick="startDay()">Начать рабочий день</button></div>`; }
   case 'cards':
     return `<div class="card"><h2>☕ Кофе и разминка</h2><p>До стендапа 20 минут. Повторите теорию по карточкам: в очереди ${cardQueue().length}. Интервальные повторения держат в голове термины, которые нужны на встречах и в спецификациях.</p>
-    <div class="row"><button class="btn" onclick="go('cards')">Повторить карточки</button><button class="btn ghost" onclick="Dget().cardsDone=true;event('Разминка пропущена');render()">Пропустить</button></div></div>`;
+    <div class="row"><button class="btn" onclick="go('cards')">Повторить карточки</button><button class="btn ghost" onclick="Dget().cardsDone=true;logEvent('Разминка пропущена');render()">Пропустить</button></div></div>`;
   case 'standup': {
     const prev = Object.keys(S.plans).filter(d => d < k).sort().pop();
     const y = prev ? S.log.filter(e => e.day === prev).map(e => `${ticketOf(e.id, prev)?.key || ''} ${e.title}`.trim()) : [];
@@ -262,10 +262,10 @@ function phasePanel(ph, p, D){
     const t = ticketOf(ph.id), it = ITEMS[ph.id];
     return `<div class="card ticket"><div class="tags"><span class="tag">${t.key}</span><span class="tag k-${it.kind}">${KIND_LABEL[it.kind]}</span><span class="tag">приоритет ${t.prio}</span><span class="tag">срок ${t.due}</span>${t.carried?'<span class="tag err">доработка</span>':''}</div>
     <h2>${esc(t.title)}</h2><div class="msg"><div class="from">✉ ${esc(t.who)}</div>${esc(t.intro)}</div>
-    <div class="row"><button class="btn" onclick="open('${ph.id}')">${it.kind==='inbox'?'Открыть чат':'Взять в работу'}</button>${it.kind!=='inbox'&&it.kind!=='quiz'?`<button class="btn ghost" onclick="postpone('${ph.id}')">Отложить на завтра</button>`:''}</div></div>`; }
+    <div class="row"><button class="btn" onclick="openTask('${ph.id}')">${it.kind==='inbox'?'Открыть чат':'Взять в работу'}</button>${it.kind!=='inbox'&&it.kind!=='quiz'?`<button class="btn ghost" onclick="postpone('${ph.id}')">Отложить на завтра</button>`:''}</div></div>`; }
   case 'lunch':
     return `<div class="card"><h2>🍽 Обед, 13:00–14:00</h2>${D.lunchStart ? `<p>Вы ушли на обед в ${hm(D.lunchStart)}. Отдыхайте: это часть рабочего дня, а не его потеря.</p><button class="btn" onclick="endLunch()">Вернулся с обеда</button>`
-      : `<p>Утренний блок закрыт. Отойдите от экрана, хотя бы на 20–30 минут. После обеда — встреча по проекту.</p><button class="btn" onclick="Dget().lunchStart=Date.now();event('Ушёл на обед');render()">Уйти на обед</button>`}</div>`;
+      : `<p>Утренний блок закрыт. Отойдите от экрана, хотя бы на 20–30 минут. После обеда — встреча по проекту.</p><button class="btn" onclick="Dget().lunchStart=Date.now();logEvent('Ушёл на обед');render()">Уйти на обед</button>`}</div>`;
   case 'eod': {
     const checks = S.checks['eod@'+k] || [];
     return `<div class="card"><h2>📝 Отчёт руководителю, 17:30</h2><p>Напишите отчёт так, как отправили бы его в рабочий чат руководителю: коротко, по задачам, с результатами.</p>
@@ -285,9 +285,9 @@ function phasePanel(ph, p, D){
     <button class="btn" onclick="endDay()">Завершить рабочий день</button></div>`; }
   }
 }
-function startDay(){ const D = Dget(); D.started = Date.now(); event('Начало рабочего дня'); render(); }
-function postpone(id){ Dget().post[id] = true; event(`${ticketOf(id).key} отложена на завтра`); render(); }
-function endLunch(){ const D = Dget(); D.lunchDone = true; event(`Вернулся с обеда (${Math.max(1, Math.round((Date.now()-D.lunchStart)/60000))} мин)`); render(); }
+function startDay(){ const D = Dget(); D.started = Date.now(); logEvent('Начало рабочего дня'); render(); }
+function postpone(id){ Dget().post[id] = true; logEvent(`${ticketOf(id).key} отложена на завтра`); render(); }
+function endLunch(){ const D = Dget(); D.lunchDone = true; logEvent(`Вернулся с обеда (${Math.max(1, Math.round((Date.now()-D.lunchStart)/60000))} мин)`); render(); }
 function ensurePseudo(id, kind, title){ ITEMS[id] = ITEMS[id] || {id, kind, cat:'Коммуникации', title, level:1}; }
 function doStandup(){
   const k = today(), id = 'standup@'+k, txt = (S.drafts[id]||'').trim();
@@ -296,7 +296,7 @@ function doStandup(){
   ensurePseudo(id, 'standup', 'Выступление на стендапе');
   Dget().standup = {done:true, text:txt, at:Date.now()};
   complete(id, n/STANDUP_CHECK.length, {missed: STANDUP_CHECK.filter((_,i)=>!ch[i])});
-  event('Выступил на стендапе'); render();
+  logEvent('Выступил на стендапе'); render();
 }
 function fillEod(){
   const k = today(), p = getPlan(), D = Dget();
@@ -312,9 +312,9 @@ function sendEod(){
   ensurePseudo(id, 'eod', 'Отчёт руководителю');
   Dget().eod = {done:true, text:txt, at:Date.now(), missed};
   complete(id, (EOD_CHECK.length-missed.length)/EOD_CHECK.length, {missed});
-  event('Отправил отчёт руководителю'); render();
+  logEvent('Отправил отчёт руководителю'); render();
 }
-function endDay(){ readJournal(); const D = Dget(); D.ended = Date.now(); event('Конец рабочего дня'); save(); render(); }
+function endDay(){ readJournal(); const D = Dget(); D.ended = Date.now(); logEvent('Конец рабочего дня'); save(); render(); }
 function readJournal(){ const k = today(); const j = S.journal[k] || {}; ['learned','hard','next'].forEach(f => { const el = document.getElementById('j-'+f); if (el) j[f] = el.value; }); S.journal[k] = j; return j; }
 function saveJournal(){ readJournal(); save(); toast('Рефлексия сохранена'); render(); }
 function setMood(n){ const j = readJournal(); j.mood = n; save(); render(); }
@@ -456,7 +456,7 @@ function pickInbox(id, oi){
 function vCards(){
   const q = cardSession.queue, L = S.cardLog[today()] || {n:0, ok:0};
   const learned = Object.keys(S.cards).length;
-  if (!q.length) { const D = Dget(); if (D.started && !D.cardsDone) { D.cardsDone = true; event(`Разминка: повторено ${L.n} карточек`); } }
+  if (!q.length) { const D = Dget(); if (D.started && !D.cardsDone) { D.cardsDone = true; logEvent(`Разминка: повторено ${L.n} карточек`); } }
   if (!q.length) return `<h1>Карточки</h1><div class="card"><h3>На сегодня всё 🎉</h3><p>Повторено сегодня: ${L.n}. Изучено карточек: ${learned} из ${CARDS.length}.</p>
     <div class="row"><button class="btn" onclick="go('today')">Вернуться к рабочему дню</button><button class="btn ghost" onclick="cardSession={queue:CARDS.map((_,i)=>i).filter(i=>S.cards[i]).sort(()=>Math.random()-.5).slice(0,10),flipped:false};render()">Дополнительная тренировка (10)</button></div></div>`;
   const i = q[0], c = CARDS[i];
@@ -472,12 +472,12 @@ function vProject(){
   const done = PROJECT.stages.filter(s=>S.results[s.id]).length;
   return `<h1>${esc(PROJECT.name)}</h1><div class="card"><p>${esc(PROJECT.intro)}</p><div class="bar"><i style="width:${done/PROJECT.stages.length*100}%"></i></div><p class="muted">Пройдено этапов: ${done}/${PROJECT.stages.length}</p>
   <button class="btn ghost" onclick="exportPortfolio()">Скачать портфолио проекта (.md)</button></div>
-  ${PROJECT.stages.map((s,i)=>{ const r = S.results[s.id]; return `<div class="pitem ${r?'ok':''}" onclick="open('${s.id}')"><div class="num">${r?'✓':i+1}</div><div class="pbody"><div class="tags"><span class="tag">${esc(STAGE_CAT[s.id])}</span>${r?`<span class="tag">${Math.round(r.score*100)}%</span>`:''}</div><div class="ptitle">${esc(s.title)}</div></div><button class="btn ${r?'ghost':''}">${r?'Улучшить':'Открыть'}</button></div>`; }).join('')}`;
+  ${PROJECT.stages.map((s,i)=>{ const r = S.results[s.id]; return `<div class="pitem ${r?'ok':''}" onclick="openTask('${s.id}')"><div class="num">${r?'✓':i+1}</div><div class="pbody"><div class="tags"><span class="tag">${esc(STAGE_CAT[s.id])}</span>${r?`<span class="tag">${Math.round(r.score*100)}%</span>`:''}</div><div class="ptitle">${esc(s.title)}</div></div><button class="btn ${r?'ghost':''}">${r?'Улучшить':'Открыть'}</button></div>`; }).join('')}`;
 }
 function exportPortfolio(){
   let md = `# Портфолио: ${PROJECT.name}\n\n${PROJECT.intro}\n\n`;
   PROJECT.stages.forEach((s,i)=>{ md += `## Этап ${i+1}. ${s.title}\n\n**Задание.** ${s.task}\n\n${(S.drafts[s.id]||'_нет ответа_')}\n\n`; });
-  download(`portfolio-${today()}.md`, md);
+  downloadFile(`portfolio-${today()}.md`, md);
 }
 
 // ───────── Библиотека ─────────
@@ -486,12 +486,12 @@ function vLibrary(){
   const kinds = [['all','Все'],['case','Кейсы'],['sql','SQL'],['diagram','Диаграммы'],['openapi','OpenAPI'],['elicit','Интервью с заказчиком'],['quiz','Тесты'],['inbox','Рабочие ситуации']];
   const list = Object.values(ITEMS).filter(it=>kinds.some(k=>k[0]===it.kind) && (filter==='all'||it.kind===filter));
   return `<h1>Библиотека заданий</h1><div class="row">${kinds.map(([k,l])=>`<button class="btn sm ${filter===k?'':'ghost'}" onclick="filter='${k}';render()">${l}</button>`).join('')}</div>
-  <div class="grid">${list.map(it=>{ const r = S.results[it.id]; return `<div class="tile ${r?'ok':''}" onclick="open('${it.id}')"><div class="tags"><span class="tag k-${it.kind}">${KIND_LABEL[it.kind]}</span><span class="tag">${esc(it.cat)}</span></div><b>${esc(it.title)}</b><div class="muted small">${r?`Лучший результат ${Math.round(r.score*100)}%`:'Не пройдено'} · ${'●'.repeat(it.level||1)}</div></div>`; }).join('')}</div>`;
+  <div class="grid">${list.map(it=>{ const r = S.results[it.id]; return `<div class="tile ${r?'ok':''}" onclick="openTask('${it.id}')"><div class="tags"><span class="tag k-${it.kind}">${KIND_LABEL[it.kind]}</span><span class="tag">${esc(it.cat)}</span></div><b>${esc(it.title)}</b><div class="muted small">${r?`Лучший результат ${Math.round(r.score*100)}%`:'Не пройдено'} · ${'●'.repeat(it.level||1)}</div></div>`; }).join('')}</div>`;
 }
 function vInterview(){
   lastList = 'interview';
   return `<h1>Подготовка к собеседованию</h1><p class="muted">Вопросы, которые реально задают на интервью системного аналитика. Ответьте письменно, сравните с сильным ответом и оцените себя.</p>
-  ${INTERVIEW.map((q,i)=>{ const r = S.results['iv-'+i]; return `<div class="pitem ${r?'ok':''}" onclick="open('iv-${i}')"><div class="num">${r?'✓':i+1}</div><div class="pbody"><div class="ptitle">${esc(q[0])}</div>${r?`<div class="muted small">самооценка ${Math.round(r.lastScore*5)}/5</div>`:''}</div></div>`; }).join('')}`;
+  ${INTERVIEW.map((q,i)=>{ const r = S.results['iv-'+i]; return `<div class="pitem ${r?'ok':''}" onclick="openTask('iv-${i}')"><div class="num">${r?'✓':i+1}</div><div class="pbody"><div class="ptitle">${esc(q[0])}</div>${r?`<div class="muted small">самооценка ${Math.round(r.lastScore*5)}/5</div>`:''}</div></div>`; }).join('')}`;
 }
 
 // ───────── Прогресс ─────────
@@ -513,16 +513,16 @@ function vProgress(){
   <div class="card"><h3>Карта компетенций</h3><p class="muted small">Уровень = средний лучший балл с учётом покрытия всех заданий в направлении.</p>
   ${comp.map(c=>`<div class="comp"><span>${esc(c.cat)}</span><div class="bar"><i style="width:${Math.round(c.level*100)}%"></i></div><span class="muted small">${c.done}/${c.total} · ${Math.round(c.avg*100)}%</span></div>`).join('')}</div>
   <div class="card"><h3>Работа над ошибками</h3>${mist.length?mist.map(k=>{ const [id,qi] = k.split(':'); const q = ITEMS[id].questions[+qi]; return `<details><summary>${esc(q.q)}</summary><p>Правильно: <b>${esc(q.o[q.a])}</b></p><p class="muted">${esc(q.e)}</p><button class="btn sm ghost" onclick="delete S.mistakes['${k}'];save();render()">Разобрал</button></details>`; }).join(''):'<p class="muted">Ошибок в тестах нет.</p>'}
-  ${weakItems().length?`<h3>Задания с результатом ниже 70% — стоит переделать</h3>${weakItems().map(it=>`<div class="link" onclick="open('${it.id}')">↻ ${esc(it.title)} — ${Math.round(S.results[it.id].score*100)}%</div>`).join('')}`:''}</div>
+  ${weakItems().length?`<h3>Задания с результатом ниже 70% — стоит переделать</h3>${weakItems().map(it=>`<div class="link" onclick="openTask('${it.id}')">↻ ${esc(it.title)} — ${Math.round(S.results[it.id].score*100)}%</div>`).join('')}`:''}</div>
   <div class="card"><h3>Данные</h3><p class="muted small">Прогресс хранится в этом браузере. Сохраняйте резервную копию.</p>
-  <div class="row"><button class="btn ghost" onclick="download('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button>
+  <div class="row"><button class="btn ghost" onclick="downloadFile('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button>
   <label class="btn ghost">Импорт<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label>
   <button class="btn ghost" onclick="if(confirm('Сбросить весь прогресс?')){S=def();save();render()}">Сбросить</button></div></div>`;
 }
 const SERVICE_KINDS = ['standup','eod','interrupt','assess','mock'];
 const weakItems = () => Object.keys(S.results).filter(id=>S.results[id].score<0.7 && ITEMS[id] && !SERVICE_KINDS.includes(ITEMS[id].kind)).map(id=>ITEMS[id]);
 function importBackup(f){ if (!f) return; f.text().then(t=>{ S = Object.assign(def(), JSON.parse(t)); save(); toast('Импортировано'); render(); }).catch(()=>toast('Не удалось прочитать файл')); }
-function download(name, text){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})); a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); }
+function downloadFile(name, text){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})); a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); }
 
 // ───────── Отчёты ─────────
 let repDay = null, repMode = 'day';
@@ -533,7 +533,7 @@ function vReports(){
   return `<div class="noprint"><h1>Отчётность</h1><p class="muted">Ежедневный отчёт формируется автоматически по вашей работе в тренажёре: можно скачать, распечатать или сохранить в PDF.</p>
   <div class="row"><select onchange="repDay=this.value;render()">${days.map(d=>`<option value="${d}" ${d===repDay?'selected':''}>${d}${d===today()?' (сегодня)':''}</option>`).join('')}</select>
   <button class="btn sm ${repMode==='day'?'':'ghost'}" onclick="repMode='day';render()">День</button><button class="btn sm ${repMode==='week'?'':'ghost'}" onclick="repMode='week';render()">Неделя (7 дней)</button><button class="btn sm ${repMode==='month'?'':'ghost'}" onclick="repMode='month';render()">30 дней</button></div>
-  <div class="row"><button class="btn" onclick="download(reportName(),reportMd())">Скачать .md</button><button class="btn ghost" onclick="window.print()">Печать / PDF</button><button class="btn ghost" onclick="navigator.clipboard.writeText(reportMd()).then(()=>toast('Скопировано'))">Копировать текст</button></div></div>
+  <div class="row"><button class="btn" onclick="downloadFile(reportName(),reportMd())">Скачать .md</button><button class="btn ghost" onclick="window.print()">Печать / PDF</button><button class="btn ghost" onclick="navigator.clipboard.writeText(reportMd()).then(()=>toast('Скопировано'))">Копировать текст</button></div></div>
   <div id="report" class="card report"></div>`;
 }
 function reportDays(){ const n = dayNumOf(repDay); const len = repMode==='day'?1:repMode==='week'?7:30; return Array.from({length:len},(_,i)=>keyOfNum(n-len+1+i)); }

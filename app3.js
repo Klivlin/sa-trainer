@@ -117,7 +117,7 @@ function genCardHtml(){
 }
 async function genFromLibrary(){
   GEN = {busy:true}; const k = document.getElementById('g-kind').value, c = document.getElementById('g-cat').value, l = document.getElementById('g-level').value; render();
-  try { const id = await genTask(k, c, l); GEN = {busy:false}; open(id); } catch (e) { GEN = {busy:false, err: 'Не удалось сгенерировать: ' + e.message}; render(); }
+  try { const id = await genTask(k, c, l); GEN = {busy:false}; openTask(id); } catch (e) { GEN = {busy:false, err: 'Не удалось сгенерировать: ' + e.message}; render(); }
 }
 // Замена тикета дня на свежее сгенерированное задание
 const SLOT_OF = p => id => Object.keys(p).find(s => p[s] === id);
@@ -126,7 +126,7 @@ async function regenTicket(id){
   GEN = {busy:true, slot: id}; render();
   try {
     const nid = await genTask(it.kind, GEN_CATS.includes(it.cat) ? it.cat : 'Требования', Math.max(it.level || 2, GRADE_LEVEL[matrixGrade()] || 2));
-    p[slot] = nid; if (slot === 'case') p.carried = false; save(); event(`Задача заменена на новую: ${ITEMS[nid].title}`); GEN = {busy:false};
+    p[slot] = nid; if (slot === 'case') p.carried = false; save(); logEvent(`Задача заменена на новую: ${ITEMS[nid].title}`); GEN = {busy:false};
   } catch (e) { GEN = {busy:false, err: e.message}; }
   render();
 }
@@ -212,7 +212,7 @@ setInterval(() => {
   const F = Fday();
   if (view === 'task' && document.visibilityState === 'visible' && document.hasFocus()) { F.clean++; if (F.clean % 30 === 0) save(); }
   if (FOC.running && --FOC.left <= 0) {
-    if (FOC.mode === 'work') { F.pomo++; save(); event(`Помидор №${F.pomo} завершён`); FOC.mode = 'break'; FOC.left = (F.pomo % 4 === 0 ? 15 : 5) * 60; notify(`Помидор завершён! Перерыв ${F.pomo % 4 === 0 ? 15 : 5} минут`); }
+    if (FOC.mode === 'work') { F.pomo++; save(); logEvent(`Помидор №${F.pomo} завершён`); FOC.mode = 'break'; FOC.left = (F.pomo % 4 === 0 ? 15 : 5) * 60; notify(`Помидор завершён! Перерыв ${F.pomo % 4 === 0 ? 15 : 5} минут`); }
     else { FOC.mode = 'work'; FOC.left = 25 * 60; FOC.running = false; notify('Перерыв окончен — запускайте следующий помидор'); }
   }
   focusWidget();
@@ -248,7 +248,7 @@ function vTemplates(){
   return `<h1>Шаблоны артефактов</h1><p class="muted">Готовые структуры для реальной работы: копируйте в Confluence/Jira или вставляйте прямо в ответ задания (кнопка «Шаблон» над полем ответа).</p>
   <div class="tplgrid"><aside>${cats.map(c => `<h3>${esc(c)}</h3>${TEMPLATES.filter(t => t.cat === c).map(t => `<div class="link ${tplOpen === t.id ? 'on' : ''}" onclick="tplOpen='${t.id}';render()">${esc(t.title)}</div>`).join('')}`).join('')}</aside>
   <div>${(() => { const t = TEMPLATES.find(x => x.id === tplOpen) || TEMPLATES[0];
-    return `<div class="card"><div class="row" style="justify-content:space-between"><h2>${esc(t.title)}</h2><div><button class="btn sm" onclick="navigator.clipboard.writeText(TEMPLATES.find(x=>x.id==='${t.id}').body).then(()=>toast('Скопировано'))">Копировать</button><button class="btn sm ghost" onclick="download('${t.id}.md', TEMPLATES.find(x=>x.id==='${t.id}').body)">Скачать .md</button></div></div><pre class="tpl">${esc(t.body)}</pre></div>`; })()}</div></div>`;
+    return `<div class="card"><div class="row" style="justify-content:space-between"><h2>${esc(t.title)}</h2><div><button class="btn sm" onclick="navigator.clipboard.writeText(TEMPLATES.find(x=>x.id==='${t.id}').body).then(()=>toast('Скопировано'))">Копировать</button><button class="btn sm ghost" onclick="downloadFile('${t.id}.md', TEMPLATES.find(x=>x.id==='${t.id}').body)">Скачать .md</button></div></div><pre class="tpl">${esc(t.body)}</pre></div>`; })()}</div></div>`;
 }
 const tplPicker = id => `<div class="row small">Шаблон: <select onchange="if(this.value)insertTemplate('${id}',this.value)"><option value="">— вставить в ответ —</option>${TEMPLATES.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></div>`;
 function insertTemplate(id, tid){ const t = TEMPLATES.find(x => x.id === tid); S.drafts[id] = (S.drafts[id] ? S.drafts[id] + '\n\n' : '') + t.body; save(); render(); toast('Шаблон вставлен'); }
@@ -275,7 +275,7 @@ vSettings = function(){
   <label>Глубина размышлений модели</label><select onchange="AI.setEffort(this.value)">${[['low','Быстро'],['medium','Стандартно'],['high','Тщательно (медленнее' + (c.provider === 'anthropic' ? ', дороже' : '') + ')']].map(([v, l]) => `<option value="${v}" ${c.effort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
   </div>
   <div class="card"><h2>Данные</h2><p class="muted small">Прогресс хранится в этом браузере. На другом устройстве или адресе прогресс свой — переносите резервной копией.</p>
-  <div class="row"><button class="btn ghost" onclick="download('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button><label class="btn ghost">Импорт<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></div></div>`;
+  <div class="row"><button class="btn ghost" onclick="downloadFile('sa-trainer-backup-${today()}.json', JSON.stringify(S))">Экспорт резервной копии</button><label class="btn ghost">Импорт<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></div></div>`;
 };
 saveAI = async function(){
   const k = document.getElementById('aikey').value.trim(); if (!k) { toast('Вставьте ключ'); return; }
