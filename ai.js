@@ -63,18 +63,18 @@ async function geminiJson(system, messages, schema, maxTokens) {
   const steps = messages.map(m => ({ type: m.role === 'assistant' ? 'model_output' : 'user_input', content: [{ type: 'text', text: m.content }] }));
   if (steps[0]?.type === 'model_output') steps.unshift({ type: 'user_input', content: [{ type: 'text', text: '(начало разговора)' }] });
   const body = { store: false, system_instruction: system, input: steps,
-    generation_config: { max_output_tokens: maxTokens, thinking_level: cfg.effort },
-    response_format: { type: 'text', mime_type: 'application/json', schema: stripAP(schema) } };
+    generation_config: { max_output_tokens: maxTokens, thinking_level: cfg.effort } };
+  if (schema) body.response_format = { type: 'text', mime_type: 'application/json', schema: stripAP(schema) };
   let res, lastErr;
   // Если у модели кончилась бесплатная квота — пробуем следующую и запоминаем рабочую
   for (const model of candidates(cfg.geminiModels).slice(0, 5)) {
     try { res = await gemFetch('/interactions', { model, ...body }); if (cfg.models.gemini !== model) { cfg.models.gemini = model; persist(); } break; }
-    catch (e) { lastErr = e; if (!e.quota && e.status !== 404) throw e; }
+    catch (e) { lastErr = e; if (!e.quota && e.status !== 404 && !(e.status >= 500)) throw e; }
   }
-  if (!res) throw new Error(lastErr?.quota ? 'Бесплатные лимиты Gemini исчерпаны: подождите минуту (или до завтра, если кончился дневной лимит)' : lastErr?.message || 'Gemini не ответил');
+  if (!res) throw new Error(lastErr?.quota ? 'Бесплатные лимиты Gemini исчерпаны: подождите минуту (или до завтра, если кончился дневной лимит)' : lastErr?.status >= 500 ? 'Серверы Gemini сейчас перегружены — попробуйте через минуту' : lastErr?.message || 'Gemini не ответил');
   const text = (res.steps || []).filter(s => s.type === 'model_output').flatMap(s => s.content || []).map(c => c.text || '').join('');
   if (!text) throw new Error(`Gemini не вернул ответ (статус: ${res.status || 'неизвестно'})`);
-  return parseJson(text);
+  return schema ? parseJson(text) : { text };
 }
 
 // ───────── Claude (официальный SDK, загружается только при выборе провайдера) ─────────
@@ -83,7 +83,7 @@ async function claudeJson(system, messages, schema, maxTokens) {
   if (!AnthropicSDK) AnthropicSDK = (await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.130.0/+esm')).default;
   const Anthropic = AnthropicSDK, client = new Anthropic({ apiKey: key(), dangerouslyAllowBrowser: true });
   const model = cfg.models.anthropic;
-  const params = { model, max_tokens: maxTokens, system, messages, output_config: { effort: cfg.effort, format: { type: 'json_schema', schema } } };
+  const params = { model, max_tokens: maxTokens, system, messages, output_config: { effort: cfg.effort, ...(schema ? { format: { type: 'json_schema', schema } } : {}) } };
   let res;
   try {
     const fb = model === 'claude-haiku-5-5' ? {} : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
@@ -97,10 +97,11 @@ async function claudeJson(system, messages, schema, maxTokens) {
   }
   if (res.stop_reason === 'refusal') throw new Error('Модель отказалась отвечать на этот запрос');
   if (res.stop_reason === 'max_tokens') throw new Error('Ответ модели обрезан, попробуйте ещё раз');
-  return parseJson(res.content.find(b => b.type === 'text')?.text);
+  const out = res.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  return schema ? parseJson(out) : { text: out };
 }
 
-// Один запрос со структурированным JSON-ответом
+// Один запрос: со схемой — структурированный JSON, без схемы (null) — обычный текст {text}
 async function json(system, messages, schema, { maxTokens = 16000 } = {}) {
   if (!key()) throw new Error('Не задан ключ API (вкладка «Настройки»)');
   return cfg.provider === 'gemini' ? geminiJson(system, messages, schema, maxTokens) : claudeJson(system, messages, schema, maxTokens);
@@ -200,6 +201,25 @@ async function weekCoach(data) {
   return json(sys, [{ role: 'user', content: 'Данные недели (JSON):\n' + JSON.stringify(data) }], COACH_SCHEMA);
 }
 
+// Наставник для новичка: объясняет задачу, даёт ступенчатые подсказки, разбирает решение, отвечает на вопросы
+const TUTOR_MODES = {
+  explain: 'Объясни задачу новичку: 1) о чём она простыми словами и зачем такое делают на реальной работе; 2) какие термины встречаются — расшифруй каждый; 3) пошаговый план, как к ней подступиться (4-6 шагов); 4) на что обратить внимание, где новички чаще ошибаются. НЕ давай готового решения и не пересказывай эталон.',
+  hint: 'Дай ОДНУ следующую подсказку (уровень {n} из 3): уровень 1 — наводящий вопрос или направление мысли; уровень 2 — конкретнее: какие пункты/конструкции нужны; уровень 3 — почти решение: структура ответа или каркас запроса с пропусками. Не повторяй прошлые подсказки. Готовый ответ целиком не давай.',
+  solution: 'Разбери эталонное решение для новичка: покажи его по шагам и для каждого шага объясни, ПОЧЕМУ так делается и что было бы, если этого не сделать. Для SQL разбери запрос по частям (каждую строку). В конце — 2-3 главных урока из этой задачи.',
+  check: 'Посмотри черновик ученика и дай обратную связь как наставник: что уже хорошо, чего не хватает (по пунктам), что улучшить в первую очередь. Готовый ответ не пиши — направляй.',
+  ask: 'Ответь на вопрос ученика по этой задаче простым языком, с примером. Если вопрос просит готовое решение — дай сильную подсказку, но оставь последний шаг ученику.'
+};
+async function tutor(ctx, mode, { n = 1, prevHints = [], draft = '', history = [] } = {}) {
+  const sys = 'Ты — терпеливый наставник для начинающего системного аналитика (почти без опыта, учится с нуля). Объясняй простым русским языком, без лишнего жаргона, а необходимые термины сразу расшифровывай. Приводи примеры из жизни. Пиши структурно: короткие абзацы, списки «- », нумерация «1. », **жирный** для главного, `код` для SQL и технических имён. Отвечай по существу, без вступлений.';
+  const task = `Задание «${ctx.title}» (тип: ${ctx.kind}, направление: ${ctx.cat}).\nКонтекст: ${ctx.scenario || '—'}\nЧто нужно сделать: ${ctx.task || '—'}\nПодсказка из задания: ${ctx.hint || '—'}\n${ctx.extra || ''}\nЭталон (для тебя; показывать ученику только в режиме разбора): ${ctx.reference || '—'}\nКритерии оценки: ${(ctx.checklist || []).join('; ') || '—'}`;
+  let instr = TUTOR_MODES[mode].replace('{n}', n);
+  if (mode === 'hint' && prevHints.length) instr += '\nПрошлые подсказки: ' + prevHints.join(' | ');
+  if (mode === 'check') instr += '\nЧерновик ученика:\n<<<\n' + draft + '\n>>>';
+  const msgs = [{ role: 'user', content: task + '\n\nЗадача наставника: ' + instr }];
+  if (mode === 'ask') history.forEach(m => msgs.push({ role: m.who === 'me' ? 'user' : 'assistant', content: m.text }));
+  return json(sys, msgs, null, { maxTokens: 8000 });
+}
+
 async function ping() { return json('Ответь JSON.', [{ role: 'user', content: 'Проверка связи: верни {"ok": true}' }],
   { type: 'object', additionalProperties: false, required: ['ok'], properties: { ok: { type: 'boolean' } } }, { maxTokens: 2000 }); }
 
@@ -213,6 +233,6 @@ window.AI = {
   setEffort(v) { cfg.effort = v; persist(); },
   clearKey() { delete cfg.keys[cfg.provider]; persist(); },
   async loadGeminiModels() { cfg.geminiModels = await geminiModels(); if (!cfg.models.gemini || !cfg.geminiModels.includes(cfg.models.gemini)) cfg.models.gemini = pickDefault(cfg.geminiModels); persist(); return cfg.geminiModels; },
-  review, stakeholder, elicitEval, interviewer, vacancy, generate, weekCoach, ping
+  review, stakeholder, elicitEval, interviewer, vacancy, generate, weekCoach, tutor, ping
 };
 window.dispatchEvent(new Event('ai-ready'));

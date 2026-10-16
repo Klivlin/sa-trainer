@@ -9,7 +9,7 @@ const dayNum = () => dayNumOf(today());
 const keyOfNum = n => { const d = new Date(n*864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; };
 const fmtDay = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
 
-const def = () => ({results:{}, drafts:{}, checks:{}, cards:{}, cardLog:{}, log:[], journal:{}, mistakes:{}, plans:{}, days:{}, settings:{newCards:6}, sprints:{}, elicitRun:{}, aiReviews:{}, vacancies:{}, assess:[], mocks:[], interrupts:[]});
+const def = () => ({results:{}, drafts:{}, checks:{}, cards:{}, cardLog:{}, log:[], journal:{}, mistakes:{}, plans:{}, days:{}, settings:{newCards:6, learn:true}, sprints:{}, elicitRun:{}, aiReviews:{}, vacancies:{}, assess:[], mocks:[], interrupts:[], mcards:[], gen:[], coach:{}, focus:{}, tutor:{}});
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) return Object.assign(def(), s); } catch(e){} return def(); })();
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 
