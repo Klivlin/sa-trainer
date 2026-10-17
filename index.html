@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="__APP_VERSION__">
 <title>Тренажёр аналитика</title>
 <style>
 :root{--bg:#f6f5f2;--panel:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1dc;--acc:#2f5bd3;--acc2:#e8eefc;--good:#1f8a4c;--bad:#c23b32;--warn:#b7791f;--soft:#f0efeb}
@@ -140,6 +141,28 @@ pre.codeblk{white-space:pre-wrap;background:var(--bg);border:1px solid var(--lin
 .num.sm{width:24px;height:24px;font-size:12px}.lrow.ok .num{background:var(--good);color:#fff}
 .lesson{font-size:16px;line-height:1.65}.lesson h4{font-size:17px;margin:18px 0 6px}.lesson ul,.lesson ol{padding-left:22px}.lesson p{margin:8px 0}
 blockquote{border-left:3px solid var(--acc);margin:8px 0;padding:4px 12px;background:var(--acc2);border-radius:0 8px 8px 0}
+.treewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin:12px 0;padding:4px;
+  background-image:radial-gradient(circle,var(--line) 1px,transparent 1px);background-size:18px 18px}
+.tree{display:block}.tl-line{fill:none;stroke:var(--line);stroke-width:3}.tl-line.available,.tl-line.learned,.tl-line.mastered{stroke:var(--good)}.tl-line.dash{stroke-dasharray:4 5;stroke-width:2}
+.tn{cursor:pointer}.tn .frame{fill:var(--soft);stroke:var(--line);stroke-width:3}.tn .ico{font-size:24px}.tn .lbl{font-size:11px;fill:var(--muted)}
+.tn.locked{opacity:.45}.tn.available .frame{stroke:var(--acc);fill:var(--acc2)}.tn.learned .frame{stroke:var(--good);fill:color-mix(in srgb,var(--good) 18%,var(--panel))}
+.tn.mastered .frame{stroke:#d4a017;fill:color-mix(in srgb,#d4a017 22%,var(--panel));stroke-width:4}.tn.learned .lbl,.tn.mastered .lbl{fill:var(--ink)}
+.tn.sel .frame{stroke-width:5}.tn:hover .frame{filter:brightness(1.15)}.tn .stars{font-size:10px;fill:#d4a017}.tn .duedot{fill:var(--bad)}
+.tn .glow{fill:none;stroke:var(--acc);stroke-width:2;animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+.legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}.lg{display:inline-block;width:14px;height:14px;border-radius:3px;border:2px solid var(--line);margin-left:6px;vertical-align:-2px}
+.lg.available{border-color:var(--acc);background:var(--acc2)}.lg.learned{border-color:var(--good)}.lg.mastered{border-color:#d4a017;background:color-mix(in srgb,#d4a017 30%,transparent)}.lg.locked{opacity:.5}
+.duedot-l{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--bad);margin-left:6px}
+.tpanel .tico{font-size:28px;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:3px solid var(--line);background:var(--soft)}
+.tpanel .tico.learned{border-color:var(--good)}.tpanel .tico.mastered{border-color:#d4a017}.tpanel .tico.available{border-color:var(--acc)}
+.ltabs{margin-bottom:6px}.gl{padding:8px 0;border-bottom:1px solid var(--line)}
+.chip.goal{cursor:pointer}.chip.goal.ok{background:color-mix(in srgb,var(--good) 25%,transparent)}
+input[type=time]{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;margin:6px 0;display:block}
+.cert{max-width:720px;margin:16px auto;background:#fffdf6;color:#222;border:10px double #2f5bd3;border-radius:6px;padding:40px 32px;text-align:center;font-family:Georgia,serif}
+.cert.gold{border-color:#c9a227}.cert-top{letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:#666}.cert-title{font-size:40px;letter-spacing:.15em;margin:10px 0 18px;color:#2f5bd3}.cert.gold .cert-title{color:#a8841a}
+.cert-text{font-size:15px;color:#444;margin:6px 0}.cert-name{font-size:30px;margin:8px 0 14px;border-bottom:1px solid #bbb;display:inline-block;padding:0 20px}
+.cert-mod{font-size:22px;font-weight:bold;margin:8px 0}.cert-list{font-size:12px;color:#666;margin:18px 0}.cert-foot{display:flex;justify-content:space-between;font-size:12px;color:#666;margin-top:24px}
+.updbar{position:fixed;left:16px;right:16px;bottom:72px;z-index:15;max-width:640px;margin:0 auto;background:var(--panel);border:2px solid var(--acc);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.2)}.updbar>div{flex:1}
+@media print{.cert{border-width:10px;margin:0 auto}}
 @media (max-width:800px){.tplgrid{grid-template-columns:1fr}.split{grid-template-columns:1fr}.daygrid{grid-template-columns:1fr}.timeline{position:static}.comp{grid-template-columns:1fr;gap:2px}.hero .ring{min-width:72px;height:72px}h1{font-size:22px}}
 @media print{header,.noprint,#toast{display:none}body{background:#fff;color:#000}main{padding:0}.card{border:0}}
 </style>
@@ -173,18 +196,21 @@ window.addEventListener('error', e => {
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-<script src="data.js?v=9"></script>
+<script src="data.js?v=10"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<script src="data2.js?v=9"></script>
-<script src="data3.js?v=9"></script>
-<script src="data4.js?v=9"></script>
-<script src="data5.js?v=9"></script>
-<script src="data6.js?v=9"></script>
-<script src="app.js?v=9"></script>
-<script src="app2.js?v=9"></script>
-<script src="app3.js?v=9"></script>
-<script src="app4.js?v=9"></script>
-<script src="app5.js?v=9"></script>
-<script type="module" src="ai.js?v=9"></script>
+<script src="data2.js?v=10"></script>
+<script src="data3.js?v=10"></script>
+<script src="data4.js?v=10"></script>
+<script src="data5.js?v=10"></script>
+<script src="data6.js?v=10"></script>
+<script src="data7.js?v=10"></script>
+<script src="app.js?v=10"></script>
+<script src="app2.js?v=10"></script>
+<script src="app3.js?v=10"></script>
+<script src="app4.js?v=10"></script>
+<script src="app5.js?v=10"></script>
+<script src="app6.js?v=10"></script>
+<script src="app7.js?v=10"></script>
+<script type="module" src="ai.js?v=10"></script>
 </body>
 </html>

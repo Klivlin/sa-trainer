@@ -1,0 +1,47 @@
+name: Публикация на GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Версия = короткий хеш коммита: подставляется в адреса скриптов (сброс кэша браузера)
+      # и в метатег версии; version.json берёт описание из верхней записи changelog.json
+      - name: Сборка с проставленной версией
+        run: |
+          V=$(git rev-parse --short HEAD)
+          mkdir _site
+          rsync -a --exclude .git --exclude .github --exclude .claude --exclude _site ./ _site/
+          sed -i -E "s/\?v=[A-Za-z0-9]+\"/?v=${V}\"/g; s/__APP_VERSION__/${V}/g" _site/index.html
+          python3 - "$V" <<'PY'
+          import json, sys
+          log = json.load(open('changelog.json', encoding='utf-8'))
+          top = log[0] if log else {}
+          json.dump({"version": sys.argv[1], "date": top.get("date"), "title": top.get("title"), "notes": top.get("notes", [])},
+                    open('_site/version.json', 'w', encoding='utf-8'), ensure_ascii=False)
+          PY
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

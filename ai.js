@@ -227,6 +227,14 @@ async function tutor(ctx, mode, { n = 1, prevHints = [], draft = '', history = [
   return json(sys, msgs, null, { maxTokens: 8000 });
 }
 
+// Новые вопросы для повторения урока (интервальное повторение)
+async function lessonQuiz(title, body, avoid) {
+  const sys = COACH + ' Ты составляешь короткую проверку знаний по уроку для новичка. Вопросы проверяют понимание и применение (ситуации из работы), а не заучивание формулировок. Пиши по-русски.';
+  const user = `Урок: ${title}\n\nТекст урока:\n${body.slice(0, 5000)}\n\nСоставь ровно 3 вопроса: у каждого 4 варианта (o), индекс правильного a от 0 до 3, правильные ответы в разных позициях, короткое объяснение e. Не повторяй вопросы: ${avoid.join(' | ') || '—'}`;
+  const r = await json(sys, [{ role: 'user', content: user }], GEN_SCHEMAS.quiz);
+  return r.questions;
+}
+
 async function ping() { return json('Ответь JSON.', [{ role: 'user', content: 'Проверка связи: верни {"ok": true}' }],
   { type: 'object', additionalProperties: false, required: ['ok'], properties: { ok: { type: 'boolean' } } }, { maxTokens: 2000 }); }
 
@@ -240,6 +248,6 @@ window.AI = {
   setEffort(v) { cfg.effort = v; persist(); },
   clearKey() { delete cfg.keys[cfg.provider]; persist(); },
   async loadGeminiModels() { cfg.geminiModels = await geminiModels(); if (!cfg.models.gemini || !cfg.geminiModels.includes(cfg.models.gemini)) cfg.models.gemini = pickDefault(cfg.geminiModels); persist(); return cfg.geminiModels; },
-  review, stakeholder, elicitEval, interviewer, vacancy, generate, weekCoach, tutor, ping
+  review, stakeholder, elicitEval, interviewer, vacancy, generate, weekCoach, tutor, lessonQuiz, ping
 };
 window.dispatchEvent(new Event('ai-ready'));
