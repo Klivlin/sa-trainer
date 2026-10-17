@@ -47,6 +47,7 @@ async function gemFetch(path, body) {
   const msg = err.error?.message || r.statusText;
   const e = new Error(`Gemini API ${r.status}: ${msg}`); e.status = r.status;
   if (r.status === 429) e.quota = true;
+  if (/location is not supported/i.test(msg)) e.message = 'Google не обслуживает Gemini API из текущего региона — страна определяется по IP-адресу. ИИ-функции временно недоступны, остальное работает без них.';
   if (r.status === 403 || (r.status === 400 && /api key/i.test(msg))) e.message = 'Неверный ключ Gemini API или нет доступа';
   throw e;
 }
